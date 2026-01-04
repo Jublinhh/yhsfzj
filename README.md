@@ -1,113 +1,140 @@
-# Optimization Mini-Project: Multi-Armed Bandits (Topic 4)
+# Optimization Mini-Project: Multi-Armed Bandits
 
-This repository contains my implementation and experimental report for **Topic 4: Stochastic + Adversarial Multi-Armed Bandits**.
-We evaluate three classic bandit algorithms on **two required environments** (one stationary, one non-stationary) under the project setting:
+  
 
-- Number of arms: **K = 10**
-- Horizon: **T = 20000**
-- Repetitions: **N_RUNS = 20**
-- Reward: **Bernoulli**
+This repository contains the implementation and analysis for the Optimization Mini-Project, focusing on Topic 4. We implement and compare several multi-armed bandit algorithms in both stationary and non-stationary environments.
+
+  
 
 ---
 
-## Quick start
+  
 
-From the **project root directory**:
+## Topic Chosen
+
+**Topic 4: Stochastic + Adversarial Multi-Armed Bandits**
+
+  
+
+---
+
+  
+
+## Team Members & Contributions
+
+*   **赵朝彬**: Led the entire project from conception to completion. Independently implemented all algorithms (Epsilon-Greedy, UCB1, Thompson Sampling) and both the stationary and non-stationary bandit environments. Designed and executed all experiments, performed in-depth analysis of the results, and authored the final comprehensive report.
+
+  
+
+---
+
+  
+
+## Project Summary
+
+  
+
+This project explores the multi-armed bandit problem, a classic reinforcement learning challenge focused on the exploration-exploitation trade-off. We implemented three core algorithms and evaluated their performance by measuring cumulative regret over 20,000 time steps.
+
+  
+
+### Implemented Methods ("Ours")
+
+*   **UCB1**: An optimistic algorithm that uses an upper confidence bound to guide exploration toward less-explored, potentially high-reward arms.
+
+*   **Thompson Sampling**: A Bayesian algorithm that samples from the posterior distribution of each arm's reward probability to make decisions, providing a sophisticated balance of exploration and exploitation.
+
+  
+
+### Baseline Method
+
+*   **Epsilon-Greedy**: A simple and effective baseline that explores randomly with a small probability (`ε`) and otherwise exploits the currently known best arm.
+
+  
+
+---
+
+  
+
+## Reproducibility Instructions
+
+  
+
+This project is fully reproducible. The following instructions will regenerate all data in the `results/` directory and all figures in the `figures/` directory.
+
+  
+
+### 1. Environment Setup
+
+
+**Commands:**
 
 ```bash
+
+# 1. Clone this repository
+
+git clone https://github.com/ZJUT-CS/2025optimization-tmp.git
+
+cd 2025optimization-tmp
+
+  
+
+# 2. Create and activate the conda environment
+
+conda create -n bandit_project python=3.10 -y
+
+conda activate bandit_project
+
+  
+
+# 3. Install all required libraries from the requirements file
+
 pip install -r requirements.txt
-python main.py
 ```
 
-Outputs are written to:
-- `results/` (per-run cumulative regret CSVs + runtime CSVs)
-- `figures/` (regret curves)
+### 2. Run the Main Experiment
+
+After setting up the environment, run the following single command from the project's root directory:
+
+```bash
+
+python main.py
+
+```
+
+This script will execute the full suite of experiments for both **Environment A (Stationary)** and **Environment B (Non-Stationary)**, running 20 trials for each of the three algorithms. It will automatically save all CSV results and PNG figures to their respective directories.
+
+  
+
+**Random Seed:** The experiments use a fixed random seed (`42`) to ensure that the exact results and figures can be reproduced.
+
+  
 
 ---
 
-## Environments
+  
 
-### Env A (stationary Bernoulli, required)
+## Repository Layout
 
-- Best arm mean: **0.60**
-- Other arms: **linearly spaced in [0.45, 0.58]**
-- Reward model: \(r_t \sim \mathrm{Bernoulli}(\mu_{I_t})\)
+The project is organized as follows:
 
-### Env B (non-stationary Bernoulli, required)
-
-- Best arm **switches every 4000 steps** (5 stages over T=20000)
-- For each run, we first sample baseline means for all arms:
-  \(\mu_k^{base} \sim \mathrm{Uniform}(0.45, 0.58)\).
-- In each stage, one arm is set to **0.60** (the stage-optimal arm), while all other arms keep their baseline means.
-
-So Env B is non-stationary because the **identity of the best arm changes**, while suboptimal arms stay within \([0.45,0.58]\).
-
----
-
-## Algorithms
-
-Implemented in `src/agents.py`:
-
-- **EpsilonGreedy (ε=0.1)** (baseline)
-- **UCB1 (c=2)** (implemented from scratch)
-- **Thompson Sampling (Beta-Bernoulli)** (implemented from scratch)
-
----
-
-## Metric: cumulative regret (empirical)
-
-We report the **empirical cumulative regret** computed step-by-step:
-
-\[
-R_t = \sum_{s=1}^{t} (\mu_s^{\*} - r_s),
-\]
-
-where \(r_s\) is the realized Bernoulli reward and \(\mu_s^{\*}\) is the best achievable mean reward at step \(s\).
-
-- **Env A (stationary):** \(\mu_s^{\*}=0.60\) for all \(s\)
-- **Env B (non-stationary):** \(\mu_s^{\*}\) is **time-varying** due to the best-arm switch every 4000 steps (i.e., **dynamic-oracle regret**)
-
----
-
-## Runtime (measured)
-
-Wall-clock runtime measured from my run (20 repetitions per algorithm).
-
-### Env A
-
-| Agent | total_seconds | seconds_per_run |
-|---|---:|---:|
-| EpsilonGreedy (e=0.1) | 2.4093 | 0.1205 |
-| UCB1 (c=2) | 7.0801 | 0.3540 |
-| ThompsonSampling | 9.1904 | 0.4595 |
-
-### Env B
-
-| Agent | total_seconds | seconds_per_run |
-|---|---:|---:|
-| EpsilonGreedy (e=0.1) | 2.7571 | 0.1379 |
-| UCB1 (c=2) | 7.4104 | 0.3705 |
-| ThompsonSampling | 9.5167 | 0.4758 |
-
-The raw CSVs are saved as:
-- `results/runtime_Stable_Env_A.csv`
-- `results/runtime_NonStationary_Env_B.csv`
-
----
-
-## Project structure
-
-```text
+```
 .
-├── main.py
-├── Project.md
-├── report.md
 ├── README.md
+
+├── report.md
+
 ├── requirements.txt
+
 ├── src/
-│   ├── agents.py
-│   └── environments.py
+
+│ ├── agents.py  
+
+│ └── environments.py
+
 ├── results/
+
 ├── figures/
-└── xxx.txt   # run log (optional)
+
+└── xxx.txt # this is my log
 ```

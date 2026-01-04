@@ -16,10 +16,12 @@ $$
 R_t = \sum_{s=1}^{t} \left(\mu_s^\star - r_s\right)
 $$
 
-where $\mu^\star = \max_{k \in \{1, ..., K\}} \mu_k$ is the mean reward of the best arm. The goal is to design an algorithm that makes the regret grow as slowly as possible.
+where $\mu_s^\star = \max_{k \in \{1,...,K\}} \mu_{k,s}$ is the best achievable mean reward at step $s$. The goal is to design an algorithm that makes the regret grow as slowly as possible.
 
 In Environment A (stationary), $\mu_s^\star = 0.60$ for all $s$.
 In Environment B (non-stationary), $\mu_s^\star$ changes over time because the identity of the best arm switches every 4,000 steps (dynamic-oracle regret).
+
+In Env A, since $\mu_s^\star = 0.60$ is constant, this reduces to $R_T = T \cdot 0.60 - \sum_{t=1}^{T} r_t$, matching the Project.md stochastic regret definition.
 
 ## 2. Methods
 
