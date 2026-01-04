@@ -1,164 +1,120 @@
-# Report (Topic 4: Stochastic + Adversarial Multi-Armed Bandits)
+# Report Title (Topic 4: Stochastic + Adversarial Multi-Armed Bandits)
 
-**Team member:** 赵朝彬  
-**Reproducibility:** `python main.py` (run from project root)
-
----
+**Team members:** 赵朝彬  
+**Topic:** (4)  
+**Reproducibility:** (python main.py)
 
 ## 1. Problem statement
 
-We study the **multi-armed bandit** (MAB) problem with **K = 10** arms and horizon **T = 20000**.
-At each time step \(t\), the agent chooses an arm \(I_t\) and only observes the reward of that arm:
-\[
-r_t \sim \mathrm{Bernoulli}(\mu_{I_t}).
-\]
-The goal is to maximize cumulative reward, equivalently minimize regret.
+This project addresses the classic multi-armed bandit (MAB) problem, a fundamental challenge in reinforcement learning that exemplifies the exploration-exploitation trade-off. We consider a stochastic bandit environment with a finite set of $K$ arms (actions). At each time step $t \in \{1, 2, ..., T\}$, an agent selects an arm $I_t \in \{1, 2, ..., K\}$. Upon selection, the agent receives a reward $r_t$ drawn from a fixed but unknown probability distribution associated with that arm.
 
-### Regret definition used in this project
+Specifically, we focus on the **Bernoulli bandit** setting. For each arm $k$, the rewards are drawn from a Bernoulli distribution with a mean $\mu_k$, i.e., $r_t \sim \mathrm{Bernoulli}(\mu_{I_t})$. The agent's objective is to maximize the cumulative reward $\sum_{t=1}^{T} r_t$.
 
-We report the **empirical cumulative regret** computed step-by-step:
-\[
-R_t = \sum_{s=1}^{t} (\mu_s^{\*} - r_s),
-\]
-where \(r_s\) is the realized Bernoulli reward at step \(s\), and \(\mu_s^{\*}\) is the best achievable mean reward at step \(s\).
+This objective is equivalent to minimizing the total **cumulative regret**, $R_T$, which measures the difference between the expected reward of the optimal strategy (always playing the best arm) and the agent's actual cumulative reward. The cumulative regret is defined as:
 
-- **Env A (stationary):** \(\mu_s^{\*}=\mu^{\*}=0.60\) for all \(s\).  
-- **Env B (non-stationary):** \(\mu_s^{\*}\) is **time-varying** because the best arm switches every 4000 steps; therefore, we evaluate algorithms using **dynamic-oracle regret** (best arm at each time step).
+$$
+R_t = \sum_{s=1}^{t} \left(\mu_s^\star - r_s\right)
+$$
 
----
+where $\mu^\star = \max_{k \in \{1, ..., K\}} \mu_k$ is the mean reward of the best arm. The goal is to design an algorithm that makes the regret grow as slowly as possible.
 
-## 2. Environments
+In Environment A (stationary), $\mu_s^\star = 0.60$ for all $s$.
+In Environment B (non-stationary), $\mu_s^\star$ changes over time because the identity of the best arm switches every 4,000 steps (dynamic-oracle regret).
 
-### 2.1 Env A (stationary Bernoulli, required)
+## 2. Methods
 
-- Best arm mean: **0.60**
-- Other arms: **linearly spaced in [0.45, 0.58]**
-- Rewards: \(r_t \sim \mathrm{Bernoulli}(\mu_{I_t})\)
+To tackle the Bernoulli bandit problem, we implemented and evaluated three distinct algorithms. At least two of these are our own implementations of the core update rules, as required.
 
-### 2.2 Env B (non-stationary Bernoulli, required)
+### 2.1 Implemented Algorithms ("Ours")
 
-The horizon is divided into **5 stages** of length **4000**. For each run, we first sample baseline means:
-\[
-\mu_k^{base} \sim \mathrm{Uniform}(0.45, 0.58), \quad k=1,\dots,K.
-\]
-In each stage, a (different) arm is forced to be optimal by setting its mean to **0.60**, while all other arms keep their baseline means:
-\[
-\mu_{k,t} =
-\begin{cases}
-0.60, & k = k^{\*}(\mathrm{stage}(t)) \\
-\mu_k^{base}, & \text{otherwise}.
-\end{cases}
-\]
-Thus, Env B is non-stationary because the **identity of the best arm changes every 4000 steps**, while the suboptimal arms remain within \([0.45,0.58]\).
+The following algorithms were implemented from scratch:
 
----
+*   **UCB1 (Upper Confidence Bound 1):** An optimistic algorithm that selects arms based on an upper confidence bound of their potential reward. The UCB score for each arm $k$ at time $t$ is calculated as $\bar{\mu}_k + c \sqrt{\frac{\ln(t)}{N_k(t)}}$, where $\bar{\mu}_k$ is the empirical mean reward, $N_k(t)$ is the number of times arm $k$ has been pulled, and $c$ is an exploration parameter.
 
-## 3. Algorithms
+*   **Thompson Sampling:** A Bayesian algorithm that maintains a posterior distribution of the reward probability for each arm. For Bernoulli rewards, this is modeled using a Beta distribution, $\mathrm{Beta}(\alpha_k, \beta_k)$. At each step, the algorithm samples a value from each arm's posterior distribution and plays the arm with the highest sample. The posterior is then updated based on the observed reward.
 
-All agents are implemented in `src/agents.py`.
+### 2.2 Baseline Algorithm
 
-1. **Epsilon-Greedy (baseline)**  
-   With probability \(\varepsilon\) explore a random arm, otherwise exploit the arm with the highest estimated mean.
-   We use **\(\varepsilon = 0.1\)** (selected based on simple tuning in earlier experiments).
+We also implemented a standard baseline algorithm for comparison:
 
-2. **UCB1 (Upper Confidence Bound)**  
-   Choose the arm maximizing:
-   \[
-   \hat\mu_i(t) + c\sqrt{\frac{\log t}{n_i(t)}},
-   \]
-   where \(n_i(t)\) is the number of pulls of arm \(i\) up to time \(t\). We use **\(c=2\)**.
+*   **Epsilon-Greedy (ε-Greedy):** A simple yet effective baseline that balances exploration and exploitation. With probability $1-\epsilon$, it exploits by choosing the arm with the highest current estimated value. With probability $\epsilon$, it explores by selecting a random arm uniformly.
 
-3. **Thompson Sampling (Beta–Bernoulli)**  
-   Maintain a Beta posterior for each arm: \(\mathrm{Beta}(\alpha_i,\beta_i)\).  
-   Sample \(\theta_i \sim \mathrm{Beta}(\alpha_i,\beta_i)\) and pull \(\arg\max_i \theta_i\).  
-   We use the standard prior **\(\alpha_i=\beta_i=1\)**.
+## 3. Experimental Setup
 
----
+All experiments were conducted to compare the algorithms across two distinct environments as required.
 
-## 4. Experimental setup
+*   **Environments:**
+    *   **Environment A (Stationary):** A stochastic bandit environment with $K=10$ arms. The optimal arm's mean reward was fixed at $\mu^\star = 0.60$, while the means of the other means are linearly spaced in $[0.45, 0.58]$. The reward probabilities were constant throughout the run.
+    *   **Environment B (Non-Stationary):** The identity of the best arm changed every 4,000 time steps. For each run, we first sample baseline means for all arms with $\mu_k^{base} \sim \mathrm{Uniform}(0.45, 0.58)$. In each stage, one arm is set to $\mu=0.60$ (stage-optimal), while other arms keep their baseline means.
 
-- **Horizon:** \(T=20000\)
-- **Arms:** \(K=10\)
-- **Runs:** \(N\_RUNS=20\)
-- We fix a global seed and generate per-run seeds so that each algorithm is evaluated on **the same random environments** for fair comparison.
-- We plot the mean regret curve across runs and also report the final cumulative regret \(R_T\) as mean ± std.
+*   **Horizon and Repetitions:** For both environments, each algorithm was run for a total of $T=20,000$ time steps. To obtain robust results, each experiment was repeated for $N=20$ independent runs.
 
----
+*   **Algorithm Hyperparameters:**
+    *   **Epsilon-Greedy:** $\epsilon = 0.1$.
+    *   **UCB1:** $c = 2$.
+    *   **Thompson Sampling:** Priors $\alpha_k=1, \beta_k=1$ for all arms.
 
-## 5. Results
+*   **Reproducibility & Artifacts:** A global random seed (`RANDOM_SEED = 42`) was used for reproducibility. All results were saved to the `results/` directory and plots to the `figures/` directory, with filenames clearly distinguishing between Environment A and B.
+## 4. Results
 
-### 5.1 Performance in Env A (stationary)
+We present the performance of the algorithms separately for the stationary and non-stationary environments.
 
-**Table 1:** Final cumulative regret (Mean ± Std. Dev.) in Environment A
+### 4.1 Performance in Stationary Environment (A)
 
-| Algorithm | Final Cumulative Regret |
-|---|---:|
-| **UCB1 (c=2)** | **223.23 ± 108.17** |
-| Thompson Sampling | 395.75 ± 256.18 |
-| EpsilonGreedy (ε=0.1) | 949.65 ± 89.06 |
+In the stable environment where reward probabilities are fixed, the final cumulative regret is summarized in Table 1 and the learning curves are shown in Figure 1.
 
-**Figure 1:** Regret curves in Environment A
+**Table 1:** Final Cumulative Regret (Mean ± Std. Dev.) in Environment A
+
+| Algorithm             | Final Cumulative Regret (Mean ± Std.) | Runtime (s/run) |
+| --------------------- | ------------------------------------: | --------------: |
+| EpsilonGreedy (ε=0.1) |                        949.65 ± 89.06 |          0.1205 |
+| **UCB1 (c=2)**        |                   **223.23 ± 108.17** |          0.3540 |
+| Thompson Sampling     |                       395.75 ± 256.18 |          0.4595 |
+
+Runtime is wall-clock time per run averaged from the recorded totals (20 runs).
+
+**Figure 1:** Regret Curves in Stationary Environment (A)
 
 ![Regret Curve for Env A](figures/regret_curve_Stable_Env_A.png)
 
-**Observation.** In this stationary setting, **UCB1 achieves the lowest final regret**, and it also shows the fastest reduction of regret over time. Thompson Sampling performs reasonably but with higher variance, while ε-greedy is consistently worse because it keeps exploring at a constant rate.
+### 4.2 Performance in Non-Stationary Environment (B)
 
----
+In the environment where the best arm changes every 4,000 steps, the performance landscape shifted dramatically, as shown in Table 2 and Figure 2.
 
-### 5.2 Performance in Env B (non-stationary)
+**Table 2:** Final Cumulative Regret (Mean ± Std. Dev.) in Environment B
 
-**Table 2:** Final cumulative regret (Mean ± Std. Dev.) in Environment B
+| Algorithm             | Final Cumulative Regret (Mean ± Std.) | Runtime (s/run) |
+| --------------------- | ------------------------------------: | --------------: |
+| EpsilonGreedy (ε=0.1) |                      1102.55 ± 145.28 |          0.1379 |
+| **UCB1 (c=2)**        |                   **864.70 ± 270.98** |          0.3705 |
+| Thompson Sampling     |                      1072.40 ± 312.45 |          0.4758 |
 
-| Algorithm | Final Cumulative Regret |
-|---|---:|
-| **UCB1 (c=2)** | **864.70 ± 270.98** |
-| Thompson Sampling | 1072.40 ± 312.45 |
-| EpsilonGreedy (ε=0.1) | 1102.55 ± 145.28 |
+Runtime is wall-clock time per run averaged from the recorded totals (20 runs).
 
-**Figure 2:** Regret curves in Environment B
+**Figure 2:** Regret Curves in Non-Stationary Environment (B)
 
 ![Regret Curve for Env B](figures/regret_curve_NonStationary_Env_B.png)
 
-**Observation.** Regret increases substantially for all methods because the optimal arm changes every 4000 steps. Under this particular Env B construction (only the identity of the best arm changes; suboptimal means stay fixed in \([0.45,0.58]\)), **UCB1 still attains the lowest final regret** among the three tested methods.
+As expected, all algorithms incurred significantly higher regret in the non-stationary environment. However, UCB1 achieved the lowest final cumulative regret in this setting. The "steps" in the regret curves in Figure 2 clearly correspond to the points where the environment changed, forcing the algorithms to re-adapt.
+## 5. Discussion
 
----
+From the regret curves, the stationary environment (Env A) clearly separates the three strategies. UCB1 achieves the fastest reduction of regret growth rate over time and ends with the lowest final regret. This is consistent with the optimism-in-face-of-uncertainty principle: early exploration is automatically reduced once enough evidence is collected, so the algorithm concentrates pulls on the best arm. Thompson Sampling is competitive but shows larger variability across runs, which can lead to higher average cumulative regret in this setting. In contrast, $\varepsilon$-greedy keeps exploring with a constant probability, so even late in the horizon it continues to waste pulls on suboptimal arms, resulting in a nearly linear regret accumulation.
 
-### 5.3 Runtime
+In the non-stationary environment (Env B), the regret curves increase substantially for all methods, and the slope of regret tends to change around the switching points (every 4,000 steps). Each switch effectively makes the previously “best-looking” arm suboptimal, so the algorithms must re-discover the new optimal arm, causing additional regret. Although none of the three methods is explicitly designed for non-stationarity (e.g., no discounting / sliding window / restart), UCB1 still obtains the lowest final regret in our experiments. A plausible reason is that Env B only changes a small number of times (4 switches over the whole horizon) and the suboptimal means remain bounded within $[0.45, 0.58]$, so after each change UCB1 can re-establish confidence in the new best arm without facing continuously drifting rewards. Thompson Sampling can adapt as well, but its posterior may take longer to “forget” a previously good arm under abrupt switches when no explicit forgetting mechanism is used. $\varepsilon$-greedy can re-discover after changes due to persistent exploration, but the same constant exploration also creates unnecessary regret throughout the run.
 
-Wall-clock runtime measured on my run (20 repetitions per algorithm).
+Finally, the runtime results highlight a practical trade-off: $\varepsilon$-greedy is the fastest due to minimal computation, UCB1 incurs moderate overhead from computing confidence bonuses, and Thompson Sampling is the slowest because it samples from Beta posteriors for all arms at each step. Overall, the curves show that UCB1 provides the best performance-runtime balance in these two environments, while more specialized non-stationary variants (e.g., sliding-window / discounted / restart-based methods) are a natural next step to further improve tracking in Env B.
 
-**Table 3:** Runtime in Env A
+## Appendix (optional)
 
-| Agent | total_seconds | seconds_per_run |
-|---|---:|---:|
-| EpsilonGreedy (e=0.1) | 2.4093 | 0.1205 |
-| UCB1 (c=2) | 7.0801 | 0.3540 |
-| ThompsonSampling | 9.1904 | 0.4595 |
+### A.1 Hardware and Software Environment
 
-**Table 4:** Runtime in Env B
+The experiments were conducted on a high-performance server to ensure efficient computation. The key specifications of the environment are detailed below. This information is provided for the purpose of complete reproducibility.
 
-| Agent | total_seconds | seconds_per_run |
-|---|---:|---:|
-| EpsilonGreedy (e=0.1) | 2.7571 | 0.1379 |
-| UCB1 (c=2) | 7.4104 | 0.3705 |
-| ThompsonSampling | 9.5167 | 0.4758 |
-
----
-
-## 6. Discussion
-
-1. **Stationary (Env A).**  
-   UCB1 performs best here because its optimism-based exploration efficiently focuses on high-mean arms once enough evidence is collected. ε-greedy continues to explore at rate ε forever, which causes avoidable regret late in the horizon.
-
-2. **Non-stationary (Env B).**  
-   None of the tested algorithms is explicitly designed for non-stationarity (e.g., discounting, sliding windows, or restart mechanisms). Nevertheless, in this specific setting the environment changes only 4 times over the horizon (every 4000 steps), and suboptimal arm means remain in a narrow range. Empirically, UCB1 still achieves the lowest final regret. A natural extension would be to implement non-stationary variants such as discounted UCB / sliding-window UCB or change-point detection to better track the switching best arm.
-
-3. **Efficiency trade-off.**  
-   ε-greedy is fastest; UCB1 is moderately slower due to computing confidence bonuses; Thompson Sampling is slowest because it draws Beta samples for all arms at each step.
-
----
-
-## 7. Conclusion
-
-Across both required environments, **UCB1 (c=2)** achieves the lowest final regret in my experiments. Thompson Sampling is competitive but exhibits higher variance and higher runtime. The ε-greedy baseline is simple and fast but performs worse due to persistent random exploration. Future work should include algorithms tailored for non-stationary bandits to further reduce regret in Env B.
-
+| Component            | Specification                                                    |
+| -------------------- | ---------------------------------------------------------------- |
+| **Operating System** | Ubuntu 18.04.6 LTS                                               |
+| **CPU**              | 2x Intel Xeon E5-2699C v4 @ 2.20GHz (Total 88 Threads)           |
+| **GPU**              | 2x NVIDIA RTX A5000 (24 GB VRAM per card)                        |
+| **Memory (RAM)**     | 64 GB                                                            |
+| **Python Version**   | 3.10                                                             |
+| **Key Libraries**    | `numpy`, `pandas`, `matplotlib` (versions in `requirements.txt`) |
